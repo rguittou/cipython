@@ -23,15 +23,16 @@
 #	This program create a repository tree for Python Project.
 #
 #	Usage:
-#		csppr [ -h | --help ] [ [ -c | --create ] ]
+#		csppr [ -h | --help ] [ -c | --create ] [-v| --version ]
 #
 #	Options:
 #
-#		-h, --help	 Display this help message and exit.
-#		-c, --create Create the tree of the project repository. This
+#		-h, --help	Display this help message and exit.
+#		-c, --create    Create the tree of the project repository. This
 #				includes a one line description of the
 #				script, its command line options and
 #				arguments.
+#               -v, --version   Display version of the program
 #
 #	Revisions:
 #
@@ -47,7 +48,10 @@
 
         PROGNAME=$(basename $0)
         VERSION="1.0.0"
-		WORKING_DIR=`pwd`
+	WORKING_DIR=`pwd`
+	declare -a DIR_ROOT=("core" "tests" "docs")
+	declare -a FILE_ROOT=("LICENSE" "README.rst" "setup.py" "requirements.txt" "Makefile")
+	
 
 
 #       -------------------------------------------------------------------
@@ -96,7 +100,7 @@ function clean_up
 {
 
 #       -----------------------------------------------------------------------
-#       Function to remove temporary files and other housekeeping
+#       Function to remove housekeeping
 #               Arguments: repo_name
 #       -----------------------------------------------------------------------
 
@@ -171,23 +175,11 @@ function overwrite_repo
 {
 
 #       -----------------------------------------------------------------------
-#       Function to create repository and set permission
+#       Function to overwrite repository and set permission
 #               arguments: repo_name
 #       -----------------------------------------------------------------------
-
-	mkdir $1|| error_exit "Cannot write directory ${module_name}"
-	chmod 755 $1 || error_exit "Unable to set permissions on ${module_name} directory"
-}
-
-function overwrite_repo
-{
-
-#       -----------------------------------------------------------------------
-#       Function to create repository and set permission
-#               arguments: repo_name
-#       -----------------------------------------------------------------------
-        clean_up $1
-        create_repo $1
+	clean_up $1
+	create_repo $1
 }
 
 
@@ -204,8 +196,11 @@ function create_module
                 # Expect one arg.
                 ARGCOUNT=1
                 if [ $# -ne "$ARGCOUNT" ];then
-
-                        error_exit "Syntax error:--create option need exactly one argument Report to the help  "
+		    error_exit "\n error: --create option need exactly one argument. "
+		else
+			if !  [[ $module_name =~ ^[A-Za-z_]+$ ]]; then
+		    		error_exit " error: module name can only contain letter."
+			fi
                 fi
 
                 # See if module_name dir already exists
@@ -232,86 +227,34 @@ function create_module
 
 }
 
-
-function create_file
+function create_main_module
 {
+ create_module $1
+ ## now loop through the above array
+for i in "${FILE_ROOT[@]}"
+do
+   touch $1/$i
+   # or do whatever with individual element of the array
+done
 
-#       -----------------------------------------------------------------------
-#       Function to create readme files
-#               Arguments: file_name
-#       -----------------------------------------------------------------------
+for i in "${DIR_ROOT[@]}"
+do
+   mkdir -p $1/$i
+   # or do whatever with individual element of the array
+done
 
-        # Use user's local tmp directory if it exists
-
-        if [ -d ~/tmp ]; then
-                TEMP_DIR=~/tmp
-        else
-                TEMP_DIR=/tmp
-        fi
-
-        # Temp file for this script, using paranoid method of creation to
-        # insure that file name is not predictable.  This is for security to
-        # avoid "tmp race" attacks.  If more files are needed, create using
-        # the same form.
-
-        TEMP_FILE1=$(mktemp -q "${TEMP_DIR}/${PROGNAME}.$$.XXXXXX")
-        if [ "$TEMP_FILE1" = "" ]; then
-                error_exit "cannot create temp file!"
-        fi
 }
 
-function create_license
-{
 
-#       -----------------------------------------------------------------------
-#       Function to create readme files
+
+function version
+{
+#	-----------------------------------------------------------------------
+#       Function to display version of the Program
 #               No arguments
 #       -----------------------------------------------------------------------
 
-        # Use user's local tmp directory if it exists
-
-        if [ -d ~/tmp ]; then
-                TEMP_DIR=~/tmp
-        else
-                TEMP_DIR=/tmp
-        fi
-
-        # Temp file for this script, using paranoid method of creation to
-        # insure that file name is not predictable.  This is for security to
-        # avoid "tmp race" attacks.  If more files are needed, create using
-        # the same form.
-
-        TEMP_FILE1=$(mktemp -q "${TEMP_DIR}/${PROGNAME}.$$.XXXXXX")
-        if [ "$TEMP_FILE1" = "" ]; then
-                error_exit "cannot create temp file!"
-        fi
-}
-
-function create_readme
-{
-
-#       -----------------------------------------------------------------------
-#       Function to create readme files
-#               No arguments
-#       -----------------------------------------------------------------------
-
-        # Use user's local tmp directory if it exists
-
-        if [ -d ~/tmp ]; then
-                TEMP_DIR=~/tmp
-        else
-                TEMP_DIR=/tmp
-        fi
-
-        # Temp file for this script, using paranoid method of creation to
-        # insure that file name is not predictable.  This is for security to
-        # avoid "tmp race" attacks.  If more files are needed, create using
-        # the same form.
-
-        TEMP_FILE1=$(mktemp -q "${TEMP_DIR}/${PROGNAME}.$$.XXXXXX")
-        if [ "$TEMP_FILE1" = "" ]; then
-                error_exit "cannot create temp file!"
-        fi
+        echo "Cppsr  Version ${VERSION}."
 }
 
 function usage
@@ -337,18 +280,26 @@ function helptext
         local tab=$(echo -en "\t\t")
 
         cat <<- -EOF-
+cppsr(1) User Commands                                                             
+NAME
+       cppsr - create Python Project Structured Repository
 
-        ${PROGNAME} ver. ${VERSION}
-        This is a program to aa.
+SYNOPSIS
+       cppsr -[SHORT-OPTION]... [STRING]...
+       cppsr --[LONG-OPTION]
 
+DESCRIPTION
+       Create the Python Project Structured module.
+       Options
+       -h, --help display this help and exit
+
+       -v, --version output version information and exit
+
+       -c, --create create the Python Project Structured module.
+
+        Cpprs ver. ${VERSION}
+       
         $(usage)
-
-        Options:
-
-        -h, --help      Display this help message and exit.
-
-
-
 
 -EOF-
 }
@@ -379,23 +330,39 @@ if [ "$1" = "--help" ]; then
 fi
 
 if [ "$1" = "--create" ]; then
-        create_module $2
+        create_main_module $2
         graceful_exit
 fi
-while getopts ":h" opt; do
+
+if [ "$1" = "--version" ]; then
+	version
+	graceful_exit
+fi
+
+while getopts ":hvc" opt; do
         case $opt in
 
                 h )     helptext
-                        graceful_exit ;;
-				c )     create_module
-                        module_name=$2 ;;		
+                        graceful_exit
+		        ;;
+
+                c )     module_name=$2 		
+		        create_main_module $module_name
+			
+			graceful_exit
+		        ;;
+		v)      version
+			graceful_exit
+			;;
+
                 * )     usage
                         exit 1
+			;;
         esac
 done
 
 
 ##### Main Logic #####
-echo "voila le programme que je vais tester"
+usage
 graceful_exit
 
